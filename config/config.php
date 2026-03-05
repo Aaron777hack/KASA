@@ -21,7 +21,31 @@ define('DB_CHARSET', 'utf8mb4');
 // CONFIGURATION SITE
 // =============================================
 define('SITE_NAME', 'KASA Immobilier');
-define('SITE_URL', 'http://localhost');   // Remplacer par votre URL
+
+// Auto-détection de l'URL de base (fonctionne en local ET sur hébergement mutualisé)
+// Calcule automatiquement le chemin selon la position du fichier par rapport au document root
+(function () {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+    // Normaliser les séparateurs de chemin (Windows/Linux)
+    $docRoot = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+    // Le dossier racine du site = parent de /config/
+    $siteDir = rtrim(str_replace('\\', '/', dirname(__DIR__)), '/');
+
+    // Calculer le sous-chemin par rapport au document root
+    $basePath = '';
+    if ($docRoot && strpos($siteDir, $docRoot) === 0) {
+        $basePath = substr($siteDir, strlen($docRoot));
+    }
+    // Nettoyer (éviter double slash ou slash final)
+    $basePath = '/' . ltrim(str_replace('//', '/', $basePath), '/');
+    $basePath = rtrim($basePath, '/');
+
+    define('SITE_URL', rtrim($protocol . '://' . $host . $basePath, '/'));
+    define('BASE_PATH', $basePath); // Chemin relatif au document root (ex: /quarter ou '')
+})();
+
 define('SITE_EMAIL', 'info@kasa-immo.ci');
 define('SITE_PHONE', '+2250153847878');
 define('SITE_ADDRESS', 'Cocody Attoban, Abidjan, Côte d\'Ivoire');
