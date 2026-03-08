@@ -21,10 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_newsletter'])) {
             $sendError = 'Sujet et contenu requis.';
         } else {
             try {
-                $subscribers = db()->query("SELECT email FROM newsletter WHERE status = 'active'")->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($subscribers as $email) {
+                $subscribers = db()->query("SELECT email, token FROM newsletter WHERE status = 'active'")->fetchAll();
+                foreach ($subscribers as $sub) {
+                    $email       = $sub['email'];
                     $mailSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-                    $footer = "\n\n---\nPour vous désinscrire : " . SITE_URL . "/api/newsletter.php?action=unsubscribe&email=" . urlencode($email) . "&token=xxx";
+                    $footer = "\n\n---\nPour vous désinscrire : " . SITE_URL . "/api/newsletter.php?action=unsubscribe&email=" . urlencode($email) . "&token=" . $sub['token'];
                     $headers = "From: " . SITE_NAME . " <" . SITE_EMAIL . ">\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
                     if (@mail($email, $mailSubject, strip_tags($body) . $footer, $headers)) {
                         $sent++;

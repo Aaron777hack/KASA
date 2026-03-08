@@ -273,3 +273,74 @@ function imageUrl(string $path, string $default = 'img/product-3/1.jpg'): string
     }
     return SITE_URL . '/' . $default;
 }
+
+/**
+ * Envoyer une notification de nouvelle propriété à tous les abonnés actifs
+ * Retourne le nombre d'emails envoyés avec succès
+ */
+function sendPropertyNewsletter(array $property): int {
+    try {
+        $subscribers = db()->query(
+            "SELECT email, token FROM newsletter WHERE status = 'active'"
+        )->fetchAll();
+
+        $sent = 0;
+        foreach ($subscribers as $sub) {
+            if (sendPropertyNewsletterEmail($sub['email'], $sub['token'], $property)) {
+                $sent++;
+            }
+        }
+        return $sent;
+    } catch (PDOException $e) {
+        error_log('Newsletter property error: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Envoyer l'email de notification de nouvelle propriété à un abonné
+ */
+function sendPropertyNewsletterEmail(string $email, string $token, array $property): bool {
+    $subject     = '=?UTF-8?B?' . base64_encode('[KASA] Nouvelle propriété : ' . $property['title']) . '?=';
+    $propertyUrl = SITE_URL . '/property-details.php?slug=' . urlencode($property['slug']);
+    $unsubUrl    = SITE_URL . '/api/newsletter.php?action=unsubscribe&email=' . urlencode($email) . '&token=' . $token;
+
+    $priceLabel = match($property['price_type']) {
+        'location' => number_format($property['price'], 0, ',', ' ') . ' FCFA / mois',
+        default    => number_format($property['price'], 0, ',', ' ') . ' FCFA',
+    };
+
+    $body  = "Bonjour,\n\n";
+    $body .= "Une nouvelle propriété vient d'être ajoutée sur " . SITE_NAME . " !\n\n";
+    $body .= str_repeat("=", 50) . "\n";
+    $body .= $property['title'] . "\n";
+    $body .= str_repeat("=", 50) . "\n\n";
+    $body .= "Localisation : " . $property['location'] . "\n";
+    $body .= "Prix         : " . $priceLabel . "\n";
+    if (!empty($property['property_type'])) {
+        $body .= "Type         : " . $property['property_type'] . "\n";
+    }
+    if (!empty($property['area'])) {
+        $body .= "Surface      : " . $property['area'] . " m\u{00B2}\n";
+    }
+    if (!empty($property['bedrooms'])) {
+        $body .= "Chambres     : " . $property['bedrooms'] . "\n";
+    }
+    if (!empty($property['bathrooms'])) {
+        $body .= "Douches      : " . $property['bathrooms'] . "\n";
+    }
+    if (!empty($property['description'])) {
+        $body .= "\n" . truncate($property['description'], 200) . "\n";
+    }
+    $body .= "\nVoir la propriété : " . $propertyUrl . "\n\n";
+    $body .= str_repeat("-", 50) . "\n";
+    $body .= SITE_NAME . " - " . SITE_ADDRESS . "\n";
+    $body .= "Tel : " . SITE_PHONE . "\n\n";
+    $body .= "Se desinscrire : " . $unsubUrl . "\n";
+
+    $headers  = "From: " . SITE_NAME . " <" . SITE_EMAIL . ">\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+    return @mail($email, $subject, $body, $headers);
+}

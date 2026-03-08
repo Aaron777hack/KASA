@@ -60,7 +60,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     INSERT INTO properties (title, slug, description, price, price_type, property_type, location, bedrooms, bathrooms, area, image, gallery, status, featured)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ")->execute([$title, $slug, $description, $price, $priceType, $propertyType, $location, $bedrooms, $bathrooms, $area, $imagePath, json_encode($galleryPaths), $status, $featured]);
-                setFlash('success', 'Propriété créée avec succès !');
+
+                // Notifier les abonnés de la newsletter
+                $newsletterSent = sendPropertyNewsletter([
+                    'title'         => $title,
+                    'slug'          => $slug,
+                    'description'   => $description,
+                    'price'         => $price,
+                    'price_type'    => $priceType,
+                    'property_type' => $propertyType,
+                    'location'      => $location,
+                    'bedrooms'      => $bedrooms,
+                    'bathrooms'     => $bathrooms,
+                    'area'          => $area,
+                ]);
+
+                $flashMsg = 'Propriété créée avec succès !';
+                if ($newsletterSent > 0) {
+                    $flashMsg .= ' Newsletter envoyée à ' . $newsletterSent . ' abonné(s).';
+                }
+                setFlash('success', $flashMsg);
                 redirect(SITE_URL . '/admin/properties/index.php');
             } catch (PDOException $e) {
                 $errors[] = 'Erreur BD : ' . $e->getMessage();
